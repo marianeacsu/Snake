@@ -215,7 +215,6 @@ class Snake{
     void moves(int newDir) {
       if (newDir != dirCenter && dir + newDir != 5) {
         dir = newDir;
-       // turns = 0;
       }
       moves();
     }
@@ -294,7 +293,6 @@ void joystick(){
   yVal = analogRead(yPin);
   joystickX = xVal - 511;
   joystickY = yVal - 511;
-  //turns++;
   if (abs(joystickX) - abs(joystickY) > 0) {
     if (xVal < 400) {
       dir = dirLeft;
