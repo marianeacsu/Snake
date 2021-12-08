@@ -22,4 +22,4 @@ Snake game using Arduino UNO
 
 https://www.youtube.com/watch?v=Qs282kU9R_k
 
-## [Code]
+## [Code](https://github.com/marianeacsu/Snake/tree/main/Code)
