@@ -4,6 +4,23 @@
 
 Snake game using Arduino UNO
 
+### Phase 1 
+
+Menu design and proof of the concept (first level)
+
+#### Menu requirements
+
+Menu for Snake game displayed on a LCD Display:
+- the highscore is saved and showed at the end of the game
+- different messages are displayed at the beginning, ending and during the game
+- the score is constantly updating while playing the game
+- different logic sounds are available (while eating, dying) 
+
+#### Game requirements
+
+First level:
+- classical snake game with changing speed depending on the length of the snake
+
 ## Components
 
 - 8x8 led matrix
