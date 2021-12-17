@@ -3,6 +3,15 @@
 #include <EEPROM.h>
 #include <LiquidCrystal.h>
 
+#define PinRS 13
+#define PinE 9
+#define D4 5
+#define D5 4
+#define D6 3
+#define D7 2
+#define numberOfTones 7
+#define randomPin 0
+
 const int swPin = 8;
 const int xPin = A0;
 const int yPin = A1;
@@ -20,32 +29,33 @@ const int loadPin = 10;
 
 const int buzzPin = 7;
 int buzzTone = 200;
-int valueBuzzTone;
+int valueBuzzTone = 0;
 
 int address = 0;
 int ct = 0;
-int ok;
-int previouscore;
+int ok = 0;
+int previouscore = 0;
 int ok2 = 0;
 int ok3 = 0;
 
 LedControl lc = LedControl(dinPin, clockPin, loadPin, 1);
-LiquidCrystal lcd(13, 9, 5, 4, 3, 2);
+//LiquidCrystal lcd(13, 9, 5, 4, 3, 2);
+LiquidCrystal lcd(PinRS, PinE, D4, D5, D6, D7);
 
 bool firstGame = true;
 
 
-int joystickX;
-int joystickY;
-int xVal;
-int yVal;
-int swVal;
+int joystickX = 0;
+int joystickY = 0;
+int xVal = 0;
+int yVal = 0;
+int swVal = 0;
 
-int dir;
+int directions = 0;
 int score = -1;
 int highscore = -1;
 
-int snakeSpeed = 1100;
+int snakeSpeed = 1200;
 int speedlvl = 0;
 
 bool matrix[matrixSize][matrixSize];
@@ -58,13 +68,13 @@ struct Coordinate{
 };
 
 Coordinate food;
-Coordinate wall;
-Coordinate wall1;
+Coordinate wallFirstPiece;
+Coordinate wallSecondPiece;
 
 void setup() 
 {
   pinMode(buzzPin,OUTPUT);
-  randomSeed(analogRead(0));
+  randomSeed(analogRead(randomPin));
   pinMode(swPin, INPUT);
   digitalWrite(swPin, HIGH);
   Serial.begin(9600);
@@ -72,12 +82,14 @@ void setup()
   lc.shutdown(0, false);
   lc.setIntensity(0,2);
   lc.clearDisplay(0);
-  pinMode(9, OUTPUT);
-  wall.x = -1;
-  wall.y = -1;
-  wall1.x = -1;
-  wall1.y = -1;
+  pinMode(PinE, OUTPUT);
+  wallFirstPiece.x = -1;
+  wallFirstPiece.y = -1;
+  wallSecondPiece.x = -1;
+  wallSecondPiece.y = -1;
 }
+
+//manipulate the pointing address at the EEPROM
 
 void verifyMemory(){
   address++;
@@ -86,9 +98,10 @@ void verifyMemory(){
   }
 }
 
+//animation for the end of the game and transition between the two levels
 
-void gameOver(){
-  int happyface[8][8] = 
+void stepGame(){
+  bool happyface[matrixSize][matrixSize] = 
   {{0, 0, 1, 1, 1, 1, 0, 0},
   {0, 1, 0, 0, 0, 0, 1, 0},
   {1, 0, 1, 0, 0, 1, 0, 1},
@@ -99,14 +112,14 @@ void gameOver(){
   {0, 0, 1, 1, 1, 1, 0, 0}
   };
   snakeMenuObject.endgame(lcd);
-  for(int i = 0; i < 8; i++)
-    for(int j = 0; j < 8; j++)
+  for(int i = 0; i < matrixSize; i++)
+    for(int j = 0; j < matrixSize; j++)
       matrix[i][j] = happyface[i][j];
 
   verifyMemory();
   if(score > highscore){
     highscore = score;
-    EEPROM.write(address, highscore);
+    EEPROM.update(address, highscore);
   }
   highscore = EEPROM.read(address);
   lcd.setCursor(0,0);
@@ -117,25 +130,25 @@ void gameOver(){
   lcd.clear();
   speedlvl = 0;
   valueBuzzTone = buzzTone;
-  for(int i = 0 ; i< 7; i++){
+  for(int i = 0 ; i < numberOfTones; i++){
     tone(buzzPin, buzzTone, 20);
     delay(200);
     buzzTone = buzzTone - 100;
   }
   buzzTone = 200;
-  for (int i = 0; i < 8; i++)
-    for (int j = 0; j < 8; j++) {
+  for (int i = 0; i < matrixSize; i++)
+    for (int j = 0; j < matrixSize; j++) {
       lc.setLed(0, i, j, false);
     }
   
-  for (int i = 0; i < 8; i++)
-    for (int j = 0; j < 8; j++) {
+  for (int i = 0; i < matrixSize; i++)
+    for (int j = 0; j < matrixSize; j++) {
       lc.setLed(0, i, j, matrix[i][j]);
     }
  
   delay(5000);
   lcd.setCursor(0,0);
-   if(score> 5){
+   if(score > 5){
     ct = 1;
   }
   if(ct == 1){
@@ -144,97 +157,107 @@ void gameOver(){
   }
   started = false;
   score = -1;
-  for(int i = 0; i < 8; i++)
-    for(int j = 0; j < 8; j++)
+  for(int i = 0; i < matrixSize; i++)
+    for(int j = 0; j < matrixSize; j++)
       matrix[i][j] = 0;
   snakeSpeed = 1100;
-  for (int i = 0; i < 8; i++)
-    for (int j = 0; j < 8; j++) {
+  for (int i = 0; i < matrixSize; i++)
+    for (int j = 0; j < matrixSize; j++) {
       lc.setLed(0, i, j, false);
     }
 }
 
+//define the snake, his actions and the start position
+
 class Snake{
   private:
     Coordinate snakeCoord[65];
-    int len;
-    int dir;
+    int snakeLen;
+    int directions;
   public:
     Snake() {
       snakeCoord[0].x = 1;
       snakeCoord[0].y = 3;
       snakeCoord[1].x = 0;
       snakeCoord[1].y = 3;
-      len = 2;
-      dir = dirRight;
+      snakeLen = 2;
+      directions = dirRight;
     }
+
+    // verify if point is a cell of the snake
     
     bool isSnake(Coordinate point) {
       int startPoz = 0; 
       if (snakeCoord[0].x == point.x && snakeCoord[0].y == point.y) {
         startPoz = 1; 
       }
-      for (int i = startPoz; i < len; i++){
+      for (int i = startPoz; i < snakeLen; i++){
         if  (snakeCoord[i].x == point.x && snakeCoord[i].y == point.y) {
           return true;
         }
       }
       return false;
     }
+
+    //do snake moves
     
     void moves(){
-      len++;
-      for (int i = len-1; i > 0; i--) {
+      snakeLen++; //consider our x lengthed snake x+1 lengthed shifting all the positions in our representation
+      for (int i = snakeLen-1; i > 0; i--) { //and modifying the head of the snake based on the desired move
         snakeCoord[i].x = snakeCoord[i-1].x;
         snakeCoord[i].y = snakeCoord[i-1].y;
       }
-     if(dir == dirRight){
+     if(directions == dirRight){
       snakeCoord[0].x++;
-      if (snakeCoord[0].x >= 8) {
-        snakeCoord[0].x -= 8;
+      if (snakeCoord[0].x >= matrixSize) {
+        snakeCoord[0].x -= matrixSize;
       }
     }
 
-    if(dir == dirLeft){
+    if(directions == dirLeft){
       snakeCoord[0].x--;
       if (snakeCoord[0].x < 0) {
-       snakeCoord[0].x += 8;
+       snakeCoord[0].x += matrixSize;
       }
     }
 
-    if(dir == dirUp){
+    if(directions == dirUp){
       snakeCoord[0].y--;
       if (snakeCoord[0].y < 0) {
-        snakeCoord[0].y += 8;
+        snakeCoord[0].y += matrixSize;
       }
     }
 
-    if(dir == dirDown){
+    if(directions == dirDown){
       snakeCoord[0].y++;
-      if (snakeCoord[0].y >= 8) {
-       snakeCoord[0].y -= 8;
+      if (snakeCoord[0].y >= matrixSize) {
+       snakeCoord[0].y -= matrixSize ;
        }
     }
+    // when you meet a lighted up led, you either die or stay with this length
       if (matrix[snakeCoord[0].x][snakeCoord[0].y] == true) {
-        if (isSnake(snakeCoord[0]) || ( snakeCoord[0].x == wall.x && snakeCoord[0].y == wall.y) || ( snakeCoord[0].x == wall1.x && snakeCoord[0].y == wall1.y) ) {
-          gameOver();
+        if (isSnake(snakeCoord[0]) || ( snakeCoord[0].x == wallFirstPiece.x && snakeCoord[0].y == wallFirstPiece.y) || ( snakeCoord[0].x == wallSecondPiece.x && snakeCoord[0].y == wallSecondPiece.y) ) {
+          stepGame();
         }
         ok3=0;
+        // for level 2
         if(ct == 1){ 
           generateWall();
-          delay(500);
+          delay(500); // to differentiate the leds of the wall and the apple
           generateFood();
         }
+        //for level 1
         else{
           generateFood();
         }
         
       } 
       else {
-        len--;
-        if( !(snakeCoord[len].x == wall.x && snakeCoord[len].y == wall.y) && !(snakeCoord[len].x == wall1.x && snakeCoord[len].y == wall1.y) ){
-          matrix[snakeCoord[len].x][snakeCoord[len].y] = false;
-          lc.setLed(0, snakeCoord[len].x, snakeCoord[len].y, false);
+        snakeLen--; //if entering an empty cell my length decreases because I did not eat any apple
+        //verify if the wall is created in snake and if is in the last position I do not turn it off
+        if( !(snakeCoord[snakeLen].x == wallFirstPiece.x && snakeCoord[snakeLen].y == wallFirstPiece.y) && !(snakeCoord[snakeLen].x == wallSecondPiece.x && snakeCoord[snakeLen].y == wallSecondPiece.y) ){
+          matrix[snakeCoord[snakeLen].x][snakeCoord[snakeLen].y] = false;
+          lc.setLed(0, snakeCoord[snakeLen].x, snakeCoord[snakeLen].y, false);
         }
         
         matrix[snakeCoord[0].x][snakeCoord[0].y] = true;
@@ -243,8 +266,8 @@ class Snake{
     }
     
     void moves(int newDir) {
-      if (newDir != dirCenter && dir + newDir != 5) {
-        dir = newDir;
+     if (newDir != dirCenter && directions + newDir != 5) {
+        directions = newDir;
       }
       moves();
     }
@@ -286,31 +309,7 @@ void printScore(){
     lcd.setCursor(0,1);
     lcd.print("You are fast!");
   }
-  /*
-  lcd.setCursor(0,1) ;
-  if(score >= 2 && score < 5){
-    lcd.print("Good!");
-  }
 
-  
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Score: ");
-  lcd.setCursor(7, 0);
-  lcd.print(score);
-  lcd.setCursor(0,1) ;
-  if(score >= 5){
-    lcd.print("Great!");
-  }
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Score: ");
-  lcd.setCursor(7, 0);
-  lcd.print(score);
-  lcd.setCursor(0,1) ;
-  if(score >= 10){
-    lcd.print("Wow! Keep going!");
-  }*/
 }
 
 bool verifyNeighbours(int a, int b){
@@ -320,13 +319,10 @@ bool verifyNeighbours(int a, int b){
   return false;
 }
 
+//for generate food
 
 void generateFood(){
   score++;
-  //if(score > previouscore){
-  //  deleteWall();
-  //}
-  //deleteWall();
   buzzTone = buzzTone + 100;
   tone(buzzPin, buzzTone, 20);
   speedlvl = speedlvl + 10;
@@ -334,111 +330,111 @@ void generateFood(){
   while(true) {
     food.x = random(8);
     food.y = random(8);
-    //if(!snake.isSnake(food) || !snake.isSnake(wall) || !snake.isSnake(wall1) || (food.x == wall.x && food.y == wall.y) || (food.x == wall1.x && food.y == wall1.y) || verifyNeighbours(wall.x, wall.y)==true || verifyNeighbours(wall1.x, wall1.y)==true ) {
     if(!snake.isSnake(food)){
       break;
     }
   }
   matrix[food.x][food.y] = true;
   lc.setLed(0, food.x, food.y, true);
-  snakeSpeed /= 1.1;
+  snakeSpeed /= 1.2;
   previouscore = score;
- // deleteWall();
+
 }
+
+//for generate wall
 
 void generateWall(){
   if(ok2==1){
     deleteWall();
   }
   while(true) {
-    wall.x = random(8);
-    wall.y = random(8);
-    if(!snake.isSnake(wall) || matrix[food.x][food.y] == true) {
+    wallFirstPiece.x = random(8);
+    wallFirstPiece.y = random(8);
+    if(!snake.isSnake(wallFirstPiece) || matrix[food.x][food.y] == true) {
       break;
     }
   }
-  matrix[wall.x][wall.y] = true;
-  lc.setLed(0, wall.x, wall.y, true);
+  matrix[wallFirstPiece.x][wallFirstPiece.y] = true;
+  lc.setLed(0, wallFirstPiece.x, wallFirstPiece.y, true);
   ok=0;
-  if(wall.x == 0 && wall.y == 0 && ok ==0){
+  if(wallFirstPiece.x == 0 && wallFirstPiece.y == 0 && ok ==0){
     matrix[1][0] = true;
     lc.setLed(0, 1, 0, true);
-    wall1.x = 1;
-    wall1.y = 0;
+    wallSecondPiece.x = 1;
+    wallSecondPiece.y = 0;
     ok = 1;
   }
 
-  if(wall.x == 0 && wall.y == 7 && ok ==0){
+  if(wallFirstPiece.x == 0 && wallFirstPiece.y == 7 && ok ==0){
     matrix[1][7] = true;
     lc.setLed(0, 1, 7, true);
-    wall1.x = 1;
-    wall1.y = 7;
+    wallSecondPiece.x = 1;
+    wallSecondPiece.y = 7;
     ok = 1;
   }
 
-   if(wall.x == 7 && wall.y == 0 && ok ==0){
+   if(wallFirstPiece.x == 7 && wallFirstPiece.y == 0 && ok ==0){
     matrix[7][1] = true;
     lc.setLed(0, 7, 1, true);
-    wall1.x = 7;
-    wall1.y = 1;
+    wallSecondPiece.x = 7;
+    wallSecondPiece.y = 1;
     ok = 1;
   }
 
-   if(wall.x == 7 && wall.y == 7 && ok ==0){
+   if(wallFirstPiece.x == 7 && wallFirstPiece.y == 7 && ok ==0){
     matrix[7][6] = true;
     lc.setLed(0, 7, 6, true);
-    wall1.x = 7;
-    wall1.y = 6;
+    wallSecondPiece.x = 7;
+    wallSecondPiece.y = 6;
     ok = 1;
   }
 
-  if(wall.x == 0 && ok ==0){
-    matrix[1][wall.y] = true;
-    lc.setLed(0, 1, wall.y, true);
-    wall1.x = 1;
-    wall1.y = wall.y;
+  if(wallFirstPiece.x == 0 && ok ==0){
+    matrix[1][wallFirstPiece.y] = true;
+    lc.setLed(0, 1, wallFirstPiece.y, true);
+    wallSecondPiece.x = 1;
+    wallSecondPiece.y = wallFirstPiece.y;
     ok = 1;
   }
 
-  if(wall.x == 7 && ok ==0){
-    matrix[6][wall.y] = true;
-    lc.setLed(0, 6, wall.y, true);
-    wall1.x = 6;
-    wall1.y = wall.y;
+  if(wallFirstPiece.x == 7 && ok ==0){
+    matrix[6][wallFirstPiece.y] = true;
+    lc.setLed(0, 6, wallFirstPiece.y, true);
+    wallSecondPiece.x = 6;
+    wallSecondPiece.y = wallFirstPiece.y;
     ok = 1;
   }
 
-  if(wall.y == 0 && ok ==0){
-    matrix[wall.x][1] = true;
-    lc.setLed(0, wall.x, 1, true);
-    wall1.x = wall.x;
-    wall1.y = 1;
+  if(wallFirstPiece.y == 0 && ok ==0){
+    matrix[wallFirstPiece.x][1] = true;
+    lc.setLed(0, wallFirstPiece.x, 1, true);
+    wallSecondPiece.x = wallFirstPiece.x;
+    wallSecondPiece.y = 1;
     ok = 1;
   }
 
-  if(wall.y == 7 && ok ==0){
-    matrix[wall.x][6] = true;
-    lc.setLed(0, wall.x, 6, true);
-    wall1.x = wall.x;
-    wall1.y = 6;
+  if(wallFirstPiece.y == 7 && ok ==0){
+    matrix[wallFirstPiece.x][6] = true;
+    lc.setLed(0, wallFirstPiece.x, 6, true);
+    wallSecondPiece.x = wallFirstPiece.x;
+    wallSecondPiece.y = 6;
     ok = 1;
   }
   if(ok == 0){
-    matrix[wall.x + 1][wall.y] = true;
-    lc.setLed(0, wall.x + 1, wall.y, true);
-    wall1.x = wall.x + 1;
-    wall1.y = wall.y;
+    matrix[wallFirstPiece.x + 1][wallFirstPiece.y] = true;
+    lc.setLed(0, wallFirstPiece.x + 1, wallFirstPiece.y, true);
+    wallSecondPiece.x = wallFirstPiece.x + 1;
+    wallSecondPiece.y = wallFirstPiece.y;
     ok = 1; 
   }
   ok2=1;
-  //delay(5000);
 }
 
 void deleteWall(){
-  matrix[wall.x][wall.y] = false;
-  lc.setLed(0,wall.x, wall.y, false);
-  matrix[wall1.x][wall1.y] = false;
-  lc.setLed(0,wall1.x, wall1.y, false);
+  matrix[wallFirstPiece.x][wallFirstPiece.y] = false;
+  lc.setLed(0,wallFirstPiece.x, wallFirstPiece.y, false);
+  matrix[wallSecondPiece.x][wallSecondPiece.y] = false;
+  lc.setLed(0,wallSecondPiece.x, wallSecondPiece.y, false);
 }
 
 
@@ -450,24 +446,24 @@ void joystick(){
   joystickY = yVal - 511;
   if (abs(joystickX) - abs(joystickY) > 0) {
     if (xVal < 400) {
-      dir = dirLeft;
+      directions = dirLeft;
     } 
     else if (xVal > 600) {
-      dir = dirRight;
+      directions = dirRight;
     } 
     else {
-     dir = dirCenter;
+     directions = dirCenter;
     }
   } 
   else if (abs(joystickX) - abs(joystickY) < 0) {
     if (yVal < 400) {
-      dir = dirDown;
+      directions = dirDown;
     } 
     else if (yVal > 600) {
-      dir = dirUp;
+      directions = dirUp;
     } 
     else {
-      dir = dirCenter;
+      directions = dirCenter;
     }
   } 
   else {
@@ -480,7 +476,7 @@ void loop()
 { joystick();  
   if (!started) 
   {
-    if (dir == dirRight) {
+    if (directions == dirRight) {
       snake = Snake();
       started = true;
       if (firstGame) {
@@ -498,7 +494,7 @@ void loop()
     return;
   }
   
-  snake.moves(dir);
+  snake.moves(directions);
 
   delay(snakeSpeed);
 
