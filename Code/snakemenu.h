@@ -5,17 +5,10 @@
 int verif = 0;
 
 class Menu{
- /* private:
-    int length = 26;
-    char notes[] = "eeeeeeegcde fffffeeeeddedg";
-    int beats[] = { 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2};
-
-    int tempo = 300;*/
   
   public:
 
     void startgame(LiquidCrystal &lcd){
-       //lcd.begin(16,2);// Print a message to the LCD.
        lcd.setCursor(0, 0);
        lcd.print("Don't be a SNAKE");
        lcd.setCursor(0, 1);
