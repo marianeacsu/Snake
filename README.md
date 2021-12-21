@@ -16,13 +16,14 @@ Menu for Snake game displayed on a LCD Display:
 
 When I was little this was my favourite video game
 
-## User experience
+## How to play
 
 - you are a snake represented by a series of neighboring leds
 - when you are eating an apple, your length will increase by 1
 - your speed will go up while eating the apple
 - when you are moving, the led in front of you will light up and the last led will turn off
 - the wall is defined by two leds
+- if you hit the wall, you will die
 - firstly, the wall will appear and then the apple
 
 ## Components
