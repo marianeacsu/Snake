@@ -152,7 +152,7 @@ void stepGame() {
   }
   if (ct == 1) {
     lcd.print("Level 2:");
-    delay(2000); //print level 2d
+    delay(2000); //print level 2
   }
   started = false;
   score = -1;
@@ -183,7 +183,7 @@ class Snake {
       directions = dirRight;
     }
 
-    // verify if point is a cell of the snake
+    // verify if the point is a cell of the snake
 
     bool isSnake(Coordinate point) {
       int startPoz = 0;
@@ -233,7 +233,7 @@ class Snake {
           snakeCoord[0].y -= matrixSize ;
         }
       }
-      // when you meet a lighted up led, you either die or stay with this length
+      // when you meet a lighted up led, you either die or remain the same length
       if (matrix[snakeCoord[0].x][snakeCoord[0].y] == true) {
         if (isSnake(snakeCoord[0]) || ( snakeCoord[0].x == wallFirstPiece.x && snakeCoord[0].y == wallFirstPiece.y) || ( snakeCoord[0].x == wallSecondPiece.x && snakeCoord[0].y == wallSecondPiece.y) ) {
           stepGame();
@@ -253,7 +253,7 @@ class Snake {
       }
       else {
         snakeLen--; //if entering an empty cell my length decreases because I did not eat any apple
-        //verify if the wall is created in snake and if is in the last position I do not turn it off
+        //verify if the wall is created inside the snake and if it is in the last position I do not turn it off
         if ( !(snakeCoord[snakeLen].x == wallFirstPiece.x && snakeCoord[snakeLen].y == wallFirstPiece.y) && !(snakeCoord[snakeLen].x == wallSecondPiece.x && snakeCoord[snakeLen].y == wallSecondPiece.y) ) {
           matrix[snakeCoord[snakeLen].x][snakeCoord[snakeLen].y] = false;
           lc.setLed(0, snakeCoord[snakeLen].x, snakeCoord[snakeLen].y, false);
@@ -318,7 +318,7 @@ bool verifyNeighbours(int a, int b) {
   return false;
 }
 
-//for generate food
+//to generate food
 
 void generateFood() {
   score++;
@@ -340,7 +340,7 @@ void generateFood() {
 
 }
 
-//for generate wall
+//to generate wall
 
 void generateWall() {
   if (ok2 == 1) {
