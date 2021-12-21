@@ -44,6 +44,6 @@ When I was little this was my favourite video game
 
 ## Video
 
-https://www.youtube.com/watch?v=Qs282kU9R_k
+https://www.youtube.com/watch?v=_f8aR9u8y5E&t=4s
 
 ## [Code](https://github.com/marianeacsu/Snake/tree/main/Code)
