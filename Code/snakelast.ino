@@ -37,6 +37,7 @@ int ok = 0;
 int previouscore = 0;
 int ok2 = 0;
 int ok3 = 0;
+int transition = 5;
 
 LedControl lc = LedControl(dinPin, clockPin, loadPin, 1);
 LiquidCrystal lcd(PinRS, PinE, D4, D5, D6, D7);
@@ -147,7 +148,7 @@ void stepGame() {
 
   delay(5000); //for happy face
   lcd.setCursor(0, 0);
-  if (score > 5) {
+  if (score > transition) {
     ct = 1;
   }
   if (ct == 1) {
